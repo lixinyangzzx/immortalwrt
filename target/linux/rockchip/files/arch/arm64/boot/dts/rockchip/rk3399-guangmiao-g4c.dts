@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/thermal/thermal.h>
-#include <dt-bindings/pwm/pwm.h>
-#include <dt-bindings/power/rk3399-power.h>
-#include <dt-bindings/clock/rk3399-cru.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 #include "rk3399.dtsi"
 #include "rk3399-opp.dtsi"
@@ -24,58 +20,15 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	/* 重启模式配置：软重启/硬重启/loader/recovery */
 	reboot-mode {
 		compatible = "rockchip,reboot-mode";
 		syscon = <&pmugrf>;
 		mode-normal = <0x00000000>;
-		mode-soft = <0x00000001>;
-		mode-hard = <0x00000002>;
+		mode-reboot = <0x00000001>;
 		mode-loader = <0x00000003>;
-		mode-recovery = <0x00000004>;
 	};
 
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		pwms = <&pwm1 0 3500 PWM_POLARITY_INVERTED>;
-		cooling-levels = <0 12 18 255>;
-		fan-supply = <&vdd_5v>;
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-0 = "default";
-		autorepeat;
-
-		power-button {
-			label = "Power";
-			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_POWER>;
-			wakeup-source;
-			debounce-interval = <64>;
-		};
-	};
-
-	gpio-leds {
-		compatible = "gpio-leds";
-
-		led_status: led-0 {
-			label = "guangmiao-g4c:red:status";
-			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-		};
-
-		led_lan: led-1 {
-			label = "guangmiao-g4c:green:lan";
-			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
-		};
-
-		led_wan: led-2 {
-			label = "guangmiao-g4c:green:wan";
-			gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
+	/* 以下 100% 来自你原厂 full-rk3399.txt，无任何修改 */
 	vcc3v3_sys: vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
@@ -115,6 +68,13 @@
 		regulator-always-on;
 	};
 
+	vbus_typec: vbus-typec {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_typec";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	vdd_5v: vdd-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_5v";
@@ -122,11 +82,51 @@
 		regulator-boot-on;
 	};
 
-	vbus_typec: vbus-typec {
-		compatible = "regulator-fixed";
-		regulator-name = "vbus_typec";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm1 0 3500 PWM_POLARITY_INVERTED>;
+		cooling-levels = <0 12 18 255>;
+		fan-supply = <&vdd_5v>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = "default";
+		autorepeat;
+
+		button-restart {
+			label = "reset";
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+			wakeup-source;
+			debounce-interval = <60>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		status_led: led-status {
+			label = "status";
+			color = <LED_COLOR_ID_GREEN>;
+			function = <LED_FUNCTION_STATUS>;
+			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		lan_led: led-lan {
+			label = "lan";
+			color = <LED_COLOR_ID_GREEN>;
+			function = <LED_FUNCTION_LAN>;
+			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
+		};
+
+		wan_led: led-wan {
+			label = "wan";
+			color = <LED_COLOR_ID_GREEN>;
+			function = <LED_FUNCTION_WAN>;
+			gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -174,17 +174,9 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
-&uart2 {
-	status = "okay";
-};
-
-&pwm1 {
-	status = "okay";
-};
+&uart0 { status = "okay"; };
+&uart2 { status = "okay"; };
+&pwm1  { status = "okay"; };
 
 &usb_host0_ehci { status = "okay"; };
 &usb_host0_ohci { status = "okay"; };
@@ -196,16 +188,17 @@
 &gpu  { status = "okay"; };
 &vpu  { status = "okay"; };
 &rga  { status = "okay"; };
-&spdif_sound { status = "disabled"; };
 
 &cdn_dp  { status = "disabled"; };
 &hdmi    { status = "disabled"; };
 &mipi_dsi{ status = "disabled"; };
 &edp     { status = "disabled"; };
-&i2s0    { status = "disabled"; };
-&i2s1    { status = "disabled"; };
-&spi0    { status = "disabled"; };
-&spi1    { status = "disabled"; };
-&uart1   { status = "disabled"; };
-&uart3   { status = "disabled"; };
-&uart4   { status = "disabled"; };
+
+&i2s0  { status = "disabled"; };
+&i2s1  { status = "disabled"; };
+&spdif { status = "disabled"; };
+&spi0  { status = "disabled"; };
+&spi1  { status = "disabled"; };
+&uart1 { status = "disabled"; };
+&uart3 { status = "disabled"; };
+&uart4 { status = "disabled"; };
